@@ -9,6 +9,8 @@ const User = require("../models/user");
 const filterObj = require("../utils/filterObj");
 const promisify = require("util");
 
+const otp = require("../Templates/Mail/otp");
+
 // this function will return you jwt token
 const signToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET);
 
@@ -68,16 +70,22 @@ exports.sendOTP = async (req, res, next) => {
 
   const otp_expiry_time = Date.now() + 10 * 60 * 1000; // 10 Mins after otp is sent
 
-  await User.findByIdAndUpdate(userId, {
-    otp: new_otp,
+  const user = await User.findByIdAndUpdate(userId, {
     otp_expiry_time: otp_expiry_time,
   });
 
+  user.otp = new_otp.toString();
+
+  await user.save({ new: true, validateModifiedOnly: true });
+
+  console.log(new_otp);
+
   mailService.sendEmail({
     from: "chytmiki@gmail.com",
-    to: "example@gmail.com",
-    subject: "OTP for Tawk",
-    text: `Your OTP is ${new_otp}. This is valid for 10 Mins.`,
+    to: user.email,
+    subject: "Verification OTP",
+    html: otp(user.firstName, new_otp),
+    attachments: [],
   });
 
   res.status(200).json({
@@ -95,19 +103,24 @@ exports.verifyOTP = async (req, res, next) => {
   });
 
   if (!user) {
-    res.status(400).json({
+    return res.status(400).json({
       status: "error",
       message: "Email is invalid or OTP expired",
     });
   }
 
+  if (user.verified) {
+    return res.status(400).json({
+      status: "error",
+      message: "Email is already verified",
+    });
+  }
+
   if (!(await user.correctOTP(otp, user.otp))) {
-    res.status(400).json({
+    return res.status(400).json({
       status: "error",
       message: "OTP is incorrect",
     });
-
-    return;
   }
 
   // OTP is correct
@@ -141,14 +154,14 @@ exports.login = async (req, res, next) => {
 
   const userDoc = await User.findOne({ email: email }).select("+password");
 
-  //   if (!userDoc || !userDoc.password) {
-  //     res.status(400).json({
-  //       status: "error",
-  //       message: "Incorrect password",
-  //     });
+  if (!userDoc || !userDoc.password) {
+    res.status(400).json({
+      status: "error",
+      message: "Incorrect password",
+    });
 
-  //     return;
-  //   }
+    return;
+  }
 
   if (
     !userDoc ||
@@ -183,11 +196,13 @@ exports.forgotPassword = async (req, res, next) => {
 
   // 2) Generate the random reset token
   const resetToken = user.createPasswordResetToken();
-  // await user.save({ validateBeforeSave: false });
-  const resetURL = `https://tawk.com/auth/reset-password/${resetToken}`;
+  await user.save({ validateBeforeSave: false });
   // 3) Send it to user's email
   try {
     // TODO => Send Email with this Reset URL to user's email address
+    const resetURL = `https://tawk.com/auth/reset-password/${resetToken}`;
+
+    console.log(resetToken);
 
     res.status(200).json({
       status: "success",
@@ -209,7 +224,7 @@ exports.resetPassword = async (req, res, next) => {
   // 1) Get user based on the token
   const hashedToken = crypto
     .createHash("sha256")
-    .update(req.params.token)
+    .update(req.body.token)
     .digest("hex");
 
   const user = await User.findOne({
@@ -232,12 +247,12 @@ exports.resetPassword = async (req, res, next) => {
 
   // 3) Update changedPasswordAt property for the user
   // 4) Log the user in, send JWT
-  const token = signToken(user._id);
+  // const token = signToken(user._id);
 
   res.status(200).json({
     status: "success",
-    message: "Password reseted successfully",
-    token,
+    // message: "Password reseted successfully",
+    // token,
   });
 };
 
