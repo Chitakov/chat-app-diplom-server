@@ -2,6 +2,8 @@ const jwt = require("jsonwebtoken");
 const otpGenerator = require("otp-generator");
 const crypto = require("crypto");
 
+const mailService = require("../services/mailer");
+
 // Model
 const User = require("../models/user");
 const filterObj = require("../utils/filterObj");
@@ -71,7 +73,12 @@ exports.sendOTP = async (req, res, next) => {
     otp_expiry_time: otp_expiry_time,
   });
 
-  // TODO send mail
+  mailService.sendEmail({
+    from: "chytmiki@gmail.com",
+    to: "example@gmail.com",
+    subject: "OTP for Tawk",
+    text: `Your OTP is ${new_otp}. This is valid for 10 Mins.`,
+  });
 
   res.status(200).json({
     status: "success",
@@ -119,7 +126,7 @@ exports.verifyOTP = async (req, res, next) => {
 };
 
 // User Login
-exports.login = catchAsync(async (req, res, next) => {
+exports.login = async (req, res, next) => {
   const { email, password } = req.body;
 
   // console.log(email, password);
@@ -162,13 +169,13 @@ exports.login = catchAsync(async (req, res, next) => {
     message: "Logged in successfully!",
     token,
   });
-});
+};
 
 exports.forgotPassword = async (req, res, next) => {
   // 1) Get user based on POSTed email
   const user = await User.findOne({ email: req.body.email });
   if (!user) {
-    res.status(400).json({
+    return res.status(400).json({
       status: "error",
       message: "There is no user with email address.",
     });
@@ -212,7 +219,7 @@ exports.resetPassword = async (req, res, next) => {
 
   // 2) If token has not expired, and there is user, set the new password
   if (!user) {
-    res.status(400).json({
+    return res.status(400).json({
       status: "error",
       message: "Token is invalid or has expired",
     });
@@ -235,7 +242,7 @@ exports.resetPassword = async (req, res, next) => {
 };
 
 // Protect
-exports.protect = catchAsync(async (req, res, next) => {
+exports.protect = async (req, res, next) => {
   // 1) Getting token and check if it's there
   let token;
   if (
@@ -279,4 +286,4 @@ exports.protect = catchAsync(async (req, res, next) => {
   // GRANT ACCESS TO PROTECTED ROUTE
   req.user = this_user;
   next();
-});
+};
