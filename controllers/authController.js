@@ -3,6 +3,7 @@ const otpGenerator = require("otp-generator");
 const crypto = require("crypto");
 
 const mailService = require("../services/mailer");
+const resetPassword = require("../Templates/Mail/resetPassword");
 
 // Model
 const User = require("../models/user");
@@ -200,9 +201,19 @@ exports.forgotPassword = async (req, res, next) => {
   // 3) Send it to user's email
   try {
     // TODO => Send Email with this Reset URL to user's email address
-    const resetURL = `https://tawk.com/auth/reset-password/${resetToken}`;
+    const resetURL = `http://localhost:3000/auth/new-password?token=${resetToken}`;
+    // TODO => Send Email with this Reset URL to user's email address
 
-    console.log(resetToken);
+    mailService.sendEmail({
+      from: "chytmiki@gmail.com",
+      to: user.email,
+      subject: "Reset Password",
+      html: resetPassword(user.firstName, resetURL),
+      attachments: [],
+    });
+    // const resetURL = `https://tawk.com/auth/reset-password/${resetToken}`;
+
+    // console.log(resetToken);
 
     res.status(200).json({
       status: "success",

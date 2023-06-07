@@ -9,7 +9,7 @@ sgMail.setApiKey(process.env.SG_KEY);
 const sendSGMail = async ({ to, sender, subject, html, text, attachments }) => {
   try {
     const from = "chytmiki@gmail.com";
-    const to = "chitakov2606nikita@gmail.com";
+    // const to = "chitakov2606nikita@gmail.com";
 
     const msg = {
       to: to, // Change to your recipient
@@ -19,8 +19,6 @@ const sendSGMail = async ({ to, sender, subject, html, text, attachments }) => {
       // text: text,
       attachments,
     };
-
-    console.log(msg);
 
     return sgMail.send(msg);
   } catch (error) {
